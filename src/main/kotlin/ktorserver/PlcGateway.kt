@@ -4,6 +4,7 @@ import data.GraphJsonCodec
 import data.PlcProtocol
 import domain.ActivateGraphResult
 import domain.UploadGraphResult
+import helper.GraphCompiler
 
 class PlcGateway(
     private val host: String,
@@ -21,8 +22,9 @@ class PlcGateway(
         graphStore.saveStaged(graphJson)
 
         // 2) валидируем/парсим + отправляем в PLC
-        val graph = GraphJsonCodec.fromJson(graphJson)
-        return PlcProtocol.uploadGraph(graph)
+        val raw = GraphJsonCodec.fromJson(graphJson)      // как сейчас
+        val compiled = GraphCompiler.compileForPlc(raw)
+        return PlcProtocol.uploadGraph(compiled)
     }
 
     suspend fun activateGraph(): ActivateGraphResult {
@@ -40,7 +42,7 @@ class PlcGateway(
         return res
     }
 
-    fun getActiveGraphJsonOrNull(): String? = graphStore.loadActiveOrNull()
+    fun getActiveGraphMetaOrNull(): GraphMeta? = graphStore.loadActiveMetaOrNull()
 
     suspend fun force(req: ForceReq): Boolean =
         PlcProtocol.forceOutputInt(req.nodeIndex, req.valueInt, req.holdMs)

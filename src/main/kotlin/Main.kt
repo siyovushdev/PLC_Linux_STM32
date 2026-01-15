@@ -1,6 +1,4 @@
 
-import di.cliModule
-import di.jvmModule
 import io.ktor.http.*
 import io.ktor.serialization.gson.*
 import io.ktor.server.application.*
@@ -12,11 +10,10 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import ktorserver.*
-import org.koin.core.context.startKoin
 import java.io.File
 
 fun main() {
-    startKoin { modules(cliModule, jvmModule /* + твои другие модули */) }
+//    startKoin { modules(cliModule, jvmModule /* + твои другие модули */) }
 
     val plcHost = System.getenv("PLC_HOST") ?: "192.168.1.222"
     val plcPort = (System.getenv("PLC_PORT") ?: "5555").toInt()
@@ -52,15 +49,15 @@ fun main() {
                     }
             }
 
-            // NEW: отдать active graphJson (последний успешно activate)
             get("/api/plc/graph/active") {
-                val json = gateway.getActiveGraphJsonOrNull()
-                if (json == null) {
+                val meta = gateway.getActiveGraphMetaOrNull()
+                if (meta == null) {
                     call.respond(HttpStatusCode.NotFound, mapOf("ok" to false, "error" to "No active graph stored"))
                 } else {
-                    call.respond(mapOf("ok" to true, "graphJson" to json))
+                    call.respond(mapOf("ok" to true, "graphJson" to meta.graphJson, "sha256" to meta.sha256))
                 }
             }
+
 
             post("/api/plc/graph/upload") {
                 val req = call.receive<UploadGraphReq>()
