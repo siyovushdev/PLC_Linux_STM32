@@ -34,6 +34,43 @@ object PlcProtocol {
         val realCount: Int
     )
 
+    // -------------------------------------------------------------------------
+    // PERSIST (FLASH)
+    // -------------------------------------------------------------------------
+
+    suspend fun persistSaveActive(): Boolean {
+        return try {
+            val req = CBORObject.NewMap().apply { Add("cmd", "save_active") }
+            val resp = exchange(req, timeoutMs = 5000)
+
+            val cmd = resp["cmd"]?.AsString() ?: ""
+            if (cmd != "save_active_ack")
+                throw PlcProtocolException("persistSaveActive(): unexpected cmd='$cmd'")
+
+            resp["ok"]?.AsBoolean() ?: false
+        } catch (e: Exception) {
+            Log.e(TAG, "persistSaveActive() ERROR", e)
+            throw PlcProtocolException("persistSaveActive failed: ${e.message}", e)
+        }
+    }
+
+    suspend fun persistLoadActive(): Boolean {
+        return try {
+            val req = CBORObject.NewMap().apply { Add("cmd", "load_active") }
+            val resp = exchange(req, timeoutMs = 5000)
+
+            val cmd = resp["cmd"]?.AsString() ?: ""
+            if (cmd != "load_active_ack")
+                throw PlcProtocolException("persistLoadActive(): unexpected cmd='$cmd'")
+
+            resp["ok"]?.AsBoolean() ?: false
+        } catch (e: Exception) {
+            Log.e(TAG, "persistLoadActive() ERROR", e)
+            throw PlcProtocolException("persistLoadActive failed: ${e.message}", e)
+        }
+    }
+
+
     suspend fun requestMemInfo(): PlcMemInfo {
         val req = CBORObject.NewMap().apply { Add("cmd", "mem_info") }
         val resp = exchange(req, timeoutMs = 2000)
@@ -379,7 +416,17 @@ object PlcProtocol {
         val cycleMs = obj["cycleMs"]?.AsInt32() ?: 0
         val scanAvg = obj["scanAvgMs"]?.AsInt32() ?: 0
         val scanMax = obj["scanMaxMs"]?.AsInt32() ?: 0
+        val scanAvgUs = obj["scanAvgUs"]?.AsNumber()?.ToInt64Unchecked() ?: 0L
+        val scanMaxUs = obj["scanMaxUs"]?.AsNumber()?.ToInt64Unchecked() ?: 0L
         val scanLong = obj["scanLongSteps"]?.AsInt32() ?: 0
+
+        val workAvgUs = obj["workAvgUs"]?.AsNumber()?.ToInt64Unchecked() ?: 0L
+        val workMaxUs = obj["workMaxUs"]?.AsNumber()?.ToInt64Unchecked() ?: 0L
+        val workLongSteps = obj["workLongSteps"]?.AsInt32() ?: 0
+
+        val cycleRealAvgMs = obj["cycleRealAvgMs"]?.AsInt32() ?: 0
+        val cycleRealMaxMs = obj["cycleRealMaxMs"]?.AsInt32() ?: 0
+
         val nodesCount = obj["nodesCount"]?.AsInt32() ?: 0
 
         val list = mutableListOf<PlcNodeState>()
@@ -419,12 +466,24 @@ object PlcProtocol {
             uptimeMs = uptimeMs,
             active = active,
             cycleMs = cycleMs,
+
             scanAvgMs = scanAvg,
             scanMaxMs = scanMax,
+            scanAvgUs = scanAvgUs,
+            scanMaxUs = scanMaxUs,
             scanLongSteps = scanLong,
+
+            workAvgUs = workAvgUs,
+            workMaxUs = workMaxUs,
+            workLongSteps = workLongSteps,
+            cycleRealAvgMs = cycleRealAvgMs,
+            cycleRealMaxMs = cycleRealMaxMs,
+
             nodesCount = nodesCount,
             nodes = list
         )
+
+
     }
 
     private fun cborToFloat(v: CBORObject): Float =
@@ -485,20 +544,42 @@ object PlcProtocol {
             linkStatus = if (st.lastSuccessAtMs > 0L) "OK" else "NO_LINK"
         )
 
-        val performance = PlcPerformanceInfo(
-            scanAvgMs = s.scanAvgMs.toFloat(),
-            scanMaxMs = s.scanMaxMs.toFloat(),
-            scanLimitMs = s.cycleMs.toFloat().coerceAtLeast(1f),
+        val avgMs: Float =
+            if (s.scanAvgUs > 0) (s.scanAvgUs.toFloat() / 1000f) else s.scanAvgMs.toFloat()
 
-            // Эти поля PLC сейчас не отдаёт -> не врём. Оставляем 0 как "unknown".
+        val maxMs: Float =
+            if (s.scanMaxUs > 0) (s.scanMaxUs.toFloat() / 1000f) else s.scanMaxMs.toFloat()
+
+        val workAvgMs: Float = if (s.workAvgUs > 0) (s.workAvgUs.toFloat() / 1000f) else 0f
+        val workMaxMs: Float = if (s.workMaxUs > 0) (s.workMaxUs.toFloat() / 1000f) else 0f
+
+        val cycleRealAvg: Float = s.cycleRealAvgMs.toFloat()
+        val cycleRealMax: Float = s.cycleRealMaxMs.toFloat()
+
+        val performance = PlcPerformanceInfo(
+            scanAvgMs = avgMs,
+            scanMaxMs = maxMs,
+            scanAvgUs = s.scanAvgUs,
+            scanMaxUs = s.scanMaxUs,
+
+            workAvgMs = workAvgMs,
+            workMaxMs = workMaxMs,
+            workAvgUs = s.workAvgUs,
+            workMaxUs = s.workMaxUs,
+
+            cycleRealAvgMs = cycleRealAvg,
+            cycleRealMaxMs = cycleRealMax,
+
+            scanLimitMs = s.cycleMs.toFloat().coerceAtLeast(1f),
             cpuLoadPercent = 0,
             memoryUsagePercent = 0,
             crcErrors = 0,
-
-            // Реальные метрики клиента:
             timeouts = st.timeouts.toInt(),
-            scanLongSteps = s.scanLongSteps
+            scanLongSteps = s.scanLongSteps,
+            workLongSteps = s.workLongSteps
         )
+
+
 
         val ioSummary = PlcIoSummaryInfo(
             diUsed = diUsed,

@@ -2,15 +2,15 @@ package helper
 
 object Log {
     fun d(tag: String, msg: String) {
-        println("$tag: $msg")
+//        println("$tag: $msg")
     }
 
     fun w(tag: String, msg: String) {
-        println("$tag: $msg")
+//        println("$tag: $msg")
     }
 
     fun i(tag: String, msg: String) {
-        println("$tag: $msg")
+//        println("$tag: $msg")
     }
 
     fun e(tag: String, msg: String, e: Exception?) {

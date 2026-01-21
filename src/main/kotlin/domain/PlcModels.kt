@@ -12,13 +12,30 @@ data class PlcConnectionInfo(
 data class PlcPerformanceInfo(
     val scanAvgMs: Float,
     val scanMaxMs: Float,
+    val scanAvgUs: Long = 0,
+    val scanMaxUs: Long = 0,
+
+    // NEW: полное время работы цикла (TaskPlcScan work) включая Pump
+    val workAvgMs: Float = 0f,
+    val workMaxMs: Float = 0f,
+    val workAvgUs: Long = 0,
+    val workMaxUs: Long = 0,
+
+    // NEW: реальный период между стартами циклов (джиттер/опоздания)
+    val cycleRealAvgMs: Float = 0f,
+    val cycleRealMaxMs: Float = 0f,
+
     val scanLimitMs: Float,
     val cpuLoadPercent: Int,
     val memoryUsagePercent: Int,
     val crcErrors: Int,
     val timeouts: Int,
-    val scanLongSteps: Int = 0
+    val scanLongSteps: Int = 0,
+
+    // NEW: сколько раз “work” не уложился в cycleMs
+    val workLongSteps: Int = 0,
 )
+
 
 data class PlcIoSummaryInfo(
     val diUsed: Int,
@@ -88,12 +105,25 @@ data class PlcStatus(
     val uptimeMs: Long,
     val active: Boolean,
     val cycleMs: Int,
+
     val scanAvgMs: Int,
     val scanMaxMs: Int,
+    val scanAvgUs: Long = 0,
+    val scanMaxUs: Long = 0,
     val scanLongSteps: Int,
+
+    // NEW
+    val workAvgUs: Long = 0,
+    val workMaxUs: Long = 0,
+    val workLongSteps: Int = 0,
+
+    val cycleRealAvgMs: Int = 0,
+    val cycleRealMaxMs: Int = 0,
+
     val nodesCount: Int,
     val nodes: List<PlcNodeState>
 )
+
 
 data class PlcStatusUiState(
     val connection: PlcConnectionInfo,

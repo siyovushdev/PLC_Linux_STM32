@@ -38,6 +38,23 @@ fun main() {
                 call.respond(mapOf("ok" to true))
             }
 
+            post("/api/plc/persist/save") {
+                runCatching { gateway.persistSaveActive() }
+                    .onSuccess { ok -> call.respond(mapOf("ok" to ok)) }
+                    .onFailure { e ->
+                        call.respond(HttpStatusCode.BadGateway, mapOf("ok" to false, "error" to (e.message ?: "PLC error")))
+                    }
+            }
+
+            post("/api/plc/persist/load") {
+                runCatching { gateway.persistLoadActive() }
+                    .onSuccess { ok -> call.respond(mapOf("ok" to ok)) }
+                    .onFailure { e ->
+                        call.respond(HttpStatusCode.BadGateway, mapOf("ok" to false, "error" to (e.message ?: "PLC error")))
+                    }
+            }
+
+
             get("/api/plc/status") {
                 runCatching { gateway.status() }
                     .onSuccess { call.respond(it) }
