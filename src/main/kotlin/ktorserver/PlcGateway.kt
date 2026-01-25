@@ -16,6 +16,8 @@ class PlcGateway(
         PlcProtocol.setEndpoint(host, port)
     }
 
+    suspend fun logDump(from: Int, count: Int) = data.PlcProtocol.logDump(from, count)
+
     suspend fun persistSaveActive(): Boolean =
         PlcProtocol.persistSaveActive()
 

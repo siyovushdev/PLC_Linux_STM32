@@ -34,6 +34,48 @@ object PlcProtocol {
         val realCount: Int
     )
 
+    suspend fun logDump(from: Int, count: Int): domain.PlcLogDumpDto {
+        val req = CBORObject.NewMap().apply {
+            Add("cmd", "log_dump")
+            Add("from", from)
+            Add("count", count)
+        }
+
+        val resp = exchange(req, timeoutMs = 3000)
+
+        val cmd = resp["cmd"]?.AsString() ?: ""
+        if (cmd != "log_dump") {
+            throw PlcProtocolException("logDump: bad cmd='$cmd'")
+        }
+
+        val total = resp["total"]?.AsInt32() ?: 0
+        val fromResp = resp["from"]?.AsInt32() ?: 0
+        val countResp = resp["count"]?.AsInt32() ?: 0
+
+        val itemsArr = resp["items"]
+        val items = mutableListOf<domain.PlcLogItemDto>()
+
+        if (itemsArr != null && itemsArr.type == CBORType.Array) {
+            for (i in 0 until itemsArr.size()) {
+                val it = itemsArr[i]
+                items += domain.PlcLogItemDto(
+                    tsMs = it["tsMs"]?.AsNumber()?.ToInt64Unchecked() ?: 0L,
+                    code = it["code"]?.AsInt32() ?: 0,
+                    a = it["a"]?.AsInt32() ?: 0,
+                    b = it["b"]?.AsInt32() ?: 0,
+                )
+            }
+        }
+
+        return domain.PlcLogDumpDto(
+            total = total,
+            from = fromResp,
+            count = countResp,
+            items = items
+        )
+    }
+
+
     // -------------------------------------------------------------------------
     // PERSIST (FLASH)
     // -------------------------------------------------------------------------

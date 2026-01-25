@@ -38,6 +38,26 @@ fun main() {
                 call.respond(mapOf("ok" to true))
             }
 
+            get("/api/plc/log/dump") {
+                val from = call.request.queryParameters["from"]?.toIntOrNull() ?: 0
+                val count = call.request.queryParameters["count"]?.toIntOrNull() ?: 64
+
+                if (from < 0 || count <= 0 || count > 512) {
+                    call.respond(HttpStatusCode.BadRequest, mapOf("ok" to false, "error" to "Bad query params: from>=0, 1<=count<=512"))
+                    return@get
+                }
+
+                runCatching { gateway.logDump(from, count) }
+                    .onSuccess { call.respond(it) }
+                    .onFailure { e ->
+                        call.respond(
+                            HttpStatusCode.BadGateway,
+                            mapOf("ok" to false, "error" to (e.message ?: "PLC error"))
+                        )
+                    }
+            }
+
+
             post("/api/plc/persist/save") {
                 runCatching { gateway.persistSaveActive() }
                     .onSuccess { ok -> call.respond(mapOf("ok" to ok)) }
@@ -120,6 +140,24 @@ fun main() {
                         call.respond(HttpStatusCode.BadGateway, mapOf("ok" to false, "error" to (e.message ?: "PLC error")))
                     }
             }
+
+            post("/api/plc/mem/reset") {
+                runCatching { gateway.memReset() }
+                    .onSuccess { call.respond(mapOf("ok" to true, "values" to it)) }
+                    .onFailure { e ->
+                        call.respond(HttpStatusCode.BadRequest, mapOf("ok" to false, "error" to (e.message ?: "error")))
+                    }
+            }
+
+
+            post("/api/plc/mem/info") {
+                runCatching { gateway.memInfo() }
+                    .onSuccess { call.respond(mapOf("ok" to true, "values" to it)) }
+                    .onFailure { e ->
+                        call.respond(HttpStatusCode.BadRequest, mapOf("ok" to false, "error" to (e.message ?: "error")))
+                    }
+            }
+
 
             post("/api/plc/mem/read") {
                 val req = call.receive<MemReadReq>()
